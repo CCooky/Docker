@@ -948,9 +948,9 @@ mkdir xboot
 
 xboot项目需要Mysq、Redis、Java8三个环境，Java8不用提前安装，dockerfile写了会自动安装；
 
-Mysql的安装前面有，按着那个来，注意持久化存储的位置！！！！
+**Mysql的安装前面有，按着那个来，注意持久化存储的位置！！！！**
 
-Redis不需要持久化存储，这个简单，一下子就好了，按照前面来！！！
+**Redis不需要持久化存储，这个简单，一下子就好了，按照前面来！！！**
 
 ==注意注意==：坑点来了，这里相当于我们后端项目、Mysql、Redis在三个不同的容器，他们之间是不可以通信的，必须通过宿主机对外IP地址来通信！！！就是说我们后端yml文件要把mysql和Redis的host改为现在的Linux的IP地址；
 
@@ -968,10 +968,12 @@ vim back_dockerfile	# 新建文件
 
 ```sh
 # 输入以下内容
-FROM java:8  # 定义父镜像
-MAINTAINER ZHOUQUAN <123@QQ.COM>  # 定义作者信息
+# 定义父镜像
+FROM java:8  
+# 定义作者信息
+MAINTAINER ZHOUQUAN <123@QQ.COM>  
 # VOLUME 指定临时文件目录为/tmp 在主机 /var/lib/docker 目录下创建了一个临时文件，并链接到容器的/tmp
-VOLUME /tmp 
+VOLUME /tmp   
 # 将jar包添加到容器中并更名为xboot.jar
 ADD xboot.jar xboot.jar 
 # 运行jar包
@@ -993,7 +995,22 @@ docker build -f back_dockerfile -t backxboot . #最后这个点.必须要
 **6、启动容器**
 
 ```sh
-docker run -id --name=backxboot -p 8000:8000 backxboot  # -p指定端口映射
+ # -p指定端口映射 # -v将后端输出的日志文件绑定d
+docker run -id \
+-p 8000:8000 \
+--name=backxboot \
+-v $PWD/xbootlog:/xboot-logs \
+backxboot  
+
+ # -p指定端口映射 # -v将后端输出的日志文件绑定d
+docker run -id \
+-p 8000:8000 \
+--name=backxboot \
+-v $PWD/xbootlog:/xboot-logs \
+-v $PWD/DataAnalysis:/DataAnalysis \
+-v $PWD/ProgramData:/ProgramData \
+-v $PWD/report:/report \
+backxboot 
 ```
 
 **7、查看容器日志**
@@ -1196,9 +1213,17 @@ docker logs -ft --tail 50 frontxboot  # 查看容器近50条日志信息
 
 这种方式我们dockerfile就一句话就行了，主要在我们创建容器的时候绑定数据卷信息；
 
+**新建文件夹html：**将dist目录下的文件复制到html目录下
+
+**新建文件夹logs：**空
+
 <img src="images/image-20220714113752054.png" alt="image-20220714113752054"  />
 
 **1、Dockerfile**
+
+```
+vim front_dockerfile
+```
 
 ```
 FROM nginx
@@ -1207,7 +1232,11 @@ MAINTAINER zouzou
 
 **2、nginx.conf**
 
-改的是`/etc/nginx/nginx.conf`，需要全部内容
+因为改的是`/etc/nginx/nginx.conf`，需要全部内容
+
+```
+vim nginx.conf
+```
 
 ```sh
 #user  nobody;
@@ -1258,32 +1287,32 @@ server {
     }
 
     location /xboot/ {
-        proxy_pass http://47.111.114.184:8000;
+        proxy_pass http://139.155.243.51:8000;
     }
     location /doc.html {
-        proxy_pass http://47.111.114.184:8000;
+        proxy_pass http://139.155.243.51:8000;
     }
     location /swagger-resources {
-        proxy_pass http://47.111.114.184:8000;
+        proxy_pass http://139.155.243.51:8000;
     }
     location /webjars {
-        proxy_pass http://47.111.114.184:8000;
+        proxy_pass http://139.155.243.51:8000;
     }
     location /v2 {
-        proxy_pass http://47.111.114.184:8000;
+        proxy_pass http://139.155.243.51:8000;
     }
     location /druid {
-        proxy_pass http://47.111.114.184:8000;
+        proxy_pass http://139.155.243.51:8000;
     }
     # 完整版Activiti工作流设计器以及机器人助手页面需加入以下配置
     location /chat {
-        proxy_pass http://47.111.114.184:8000;
+        proxy_pass http://139.155.243.51:8000;
     }
     location /modeler {
-        proxy_pass http://47.111.114.184:8000;
+        proxy_pass http://139.155.243.51:8000;
      }
     location /editor-app {
-        proxy_pass http://47.111.114.184:8000;
+        proxy_pass http://139.155.243.51:8000;
     }
     # 以上为完整版需要加的反向代理转发路径规则
 
@@ -1356,11 +1385,14 @@ docker build -f front_dockerfile -t frontxboot .
 $PWD——获取当前绝对路径
 
 ```sh
+# 当前目录的nginx.conf绑定到容器内的....
+# 当前目录下的logs目录绑定到容器下这个日志目录
+# 当前html目录下文件绑定到容器内html目录下
 docker run -id --name=frontxboot \
 -p 9000:9000 \
--v $PWD/nginx.conf:/etc/nginx/nginx.conf \  # 当前目录的nginx.conf绑定到容器内的....
--v $PWD/logs:/var/log/nginx \  # 当前目录下的logs目录绑定到容器下这个日志目录
--v $PWD/html:/usr/share/nginx/html \  # 当前html目录下文件绑定到容器内html目录下
+-v $PWD/nginx.conf:/etc/nginx/nginx.conf \
+-v $PWD/logs:/var/log/nginx \
+-v $PWD/html:/usr/share/nginx/html \
 frontxboot
 ```
 
