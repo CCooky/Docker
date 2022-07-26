@@ -954,6 +954,8 @@ xboot项目需要Mysq、Redis、Java8三个环境，Java8不用提前安装，do
 
 ==注意注意==：坑点来了，这里相当于我们后端项目、Mysql、Redis在三个不同的容器，他们之间是不可以通信的，必须通过宿主机对外IP地址来通信！！！就是说我们后端yml文件要把mysql和Redis的host改为现在的Linux的IP地址；
 
+==记住：每一个容器就是一个单独的Linux系统！！！！！==
+
 ## 6.2、后端部署
 
 **1、打包springboot项目为jar包，注意跳过测试哦**
@@ -995,14 +997,14 @@ docker build -f back_dockerfile -t backxboot . #最后这个点.必须要
 **6、启动容器**
 
 ```sh
- # -p指定端口映射 # -v将后端输出的日志文件绑定d
+  # -p指定端口映射 # -v 容器内数据卷绑定（不需要python算法）
 docker run -id \
 -p 8000:8000 \
 --name=backxboot \
 -v $PWD/xbootlog:/xboot-logs \
 backxboot  
 
- # -p指定端口映射 # -v将后端输出的日志文件绑定d
+# 桥梁项目（需要部署python算法）
 docker run -id \
 -p 8000:8000 \
 --name=backxboot \
@@ -1018,6 +1020,9 @@ backxboot
 ```sh
 docker logs -ft backxboot  # 实时查看所有的日志信息
 docker logs -ft --tail 50 backxboot  # 查看容器近50条日志信息
+
+# 进入容器
+docker exec -it backxboot /bin/bash
 ```
 
 **8、测试访问**
@@ -1097,7 +1102,7 @@ systemctl restart docker
 
 ### **1. 无数据卷**
 
-这里用default.conf或者nginx.conf都是一样的，随便选；
+这里用**default.conf**或者nginx.conf都是一样的，随便选；我们在无数据卷下选的**default.conf**，有数据卷选的**nginx.conf**
 
 <img src="images/image-20220714111025044.png" alt="image-20220714111025044" style="zoom:80%;" />
 
@@ -1411,9 +1416,220 @@ docker logs -ft --tail 50 frontxboot  # 查看容器近50条日志信息
 
 访问：http://47.111.114.184:9000
 
+# 7、桥梁后端算法部署
 
+前面按照第六点，我们可以完成桥梁项目的前后端的部署，可以正常访问系统，但是算法部分是需要配置部署的，上面的无法调用算法。
 
-## 6.3、端口占用
+**首先第一步**，删除掉之前的backxboot容器，因为没有绑定算法库的数据卷。
+
+```sh
+# 停止容器
+docker stop backxboot 
+# 删除容器
+docker rm backxboot
+# 删除镜像（因为修改了源代码——PythonUtils）
+docker rmi backxboot
+```
+
+然后，再次强调一点：==记住：每一个容器就是一个单独的Linux系统！！！！！==
+
+**第二步：**修改后端java文件，PythonUtils。这里是java调用python的配置信息；从后端读取的数据会存放到最下面的临时文件存放路径里面；==这里和下一步的数据卷对应，但这个要放在前面。==
+
+![image-20220726161554806](images/image-20220726161554806.png)
+
+然后：修改具体python文件的读取临时文件的目录，和上面存放临时文件的目录一致，才可以读取到撒。
+
+![image-20220726162047402](images/image-20220726162047402.png)
+
+**第三步：**重新创建镜像，再创建容器，加上绑定python算法库文件的数据卷；（创建镜像的略过）
+
+```sh
+# 桥梁项目（需要部署python算法）
+# ProgramData--临时文件存储处
+docker run -id \
+-p 8000:8000 \
+--name=backxboot \
+-v $PWD/xbootlog:/xboot-logs \
+-v $PWD/DataAnalysis:/DataAnalysis \
+-v $PWD/ProgramData:/ProgramData \
+-v $PWD/report:/report \
+backxboot 
+```
+
+然后这三个放算法的文件夹会自动创建；
+
+<img src="images/image-20220726160007259.png" alt="image-20220726160007259" style="zoom:80%;" />
+
+**DataAnalysis**目录：将原来项目下面算法库文件夹下的复制过来；
+
+<img src="images/image-20220726160402499.png" alt="image-20220726160402499" style="zoom:80%;" />
+
+**report**目录：将报告模板的docx文件复制过来；
+
+<img src="images/image-20220726160715608.png" alt="image-20220726160715608" style="zoom:80%;" />
+
+**ProgramData**目录：算法执行流程是先从后端接口读取数据，写到现在这个临时文件目录下，然后再用python读取存储的txt文件数据，进行滤波等算法，再返回给后端；这个为空就行了；
+
+进入容器后，可以看到容器内的目录，数据卷ojbk的；
+
+![image-20220726162614441](images/image-20220726162614441.png)
+
+### **4、**安装python3
+
+==每一个容器就是一个单独的Linux系统！！！！！==
+
+1、进入后端运行的容器内——backxboot
+
+```sh
+docker exec -it testxboot bash
+```
+
+2、查看容器当前操作系统
+
+```sh
+cat /etc/issue
+```
+
+这里查到的是 Debian8 系统（不是 Ubuntu，也不是 CentOS），这里 yum 是没有的，所以不能用 yum 安装，这里用 apt-get 代替 yum.
+
+![image-20220726163011176](images/image-20220726163011176.png)
+
+3、修改apt的镜像源（Debian 使用官方的apt源安装软件速度太慢, 需要修改一下apt源）
+
+```sh
+# 备份原来的配置
+cp -pv /etc/apt/sources.list /etc/apt/sources.list.bak
+# 修改apt源地址为阿里云
+sed -i -e 's/deb.debian.org/mirrors.aliyun.com/g' -e 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
+# 刷新缓存 更新软件列表
+apt update
+```
+
+如图所示：提示更新失败。不要管他，他个SB，反正都配置好了已经
+
+<img src="images/image-20220726163423449.png" alt="image-20220726163423449" style="zoom:80%;" />
+
+4、安装screen，避免SSH连接断开造成安装中断
+
+```sh
+apt-get install screen
+```
+
+使用dpkg -l可以查询可用包，比如
+
+```sh
+dpkg -l python*
+```
+
+查到只有python2.7，不得行。
+
+<img src="images/image-20220726163816373.png" alt="image-20220726163816373" style="zoom:80%;" />
+
+5、安装python依赖的包
+
+```sh
+# 一个个复制执行
+apt-get install build-essential -y
+apt-get install libncurses5-dev libncursesw5-dev libreadline6-dev -y
+apt-get install libdb5.3-dev libgdbm-dev libsqlite3-dev libssl-dev -y
+apt-get install libbz2-dev libexpat1-dev liblzma-dev zlib1g-dev -y
+apt-get install ca-certificates -y
+```
+
+这样安装好后，openssl的so库在/usr/lib/x86_64-linux-gnu下，而Python的setup.py安装脚本固定是在/usr/local/lib下寻找so库，会造成编译ssh相关模块时出错，因此需要创建软连接。
+
+```sh
+ln /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 /usr/local/libssl.so
+ln /usr/lib/x86_64-linux-gnu/libcrypto.so.1.0.0 /usr/local/libcrypto.so
+```
+
+6、下载Python源代码编译安装
+
+```sh
+wget https://www.python.org/ftp/python/3.6.4/Python-3.6.4.tar.xz  # 这个下载会很慢
+
+tar -Jxvf Python-3.6.4.tar.xz
+
+cd Python-3.6.4
+
+./configure
+
+make clean
+
+make
+
+make install
+```
+
+![image-20220726170157142](images/image-20220726170157142.png)
+
+7、查看是否安装成功(假如没有安装成功的话，那。。。就GG重新来过把)
+
+```sh
+python3
+
+pip3
+```
+
+<img src="images/image-20220726171817503.png" alt="image-20220726171817503" style="zoom:80%;" />
+
+8、配置软连接
+
+```sh
+# 查看容器内python3的路径
+python3
+
+import sys
+
+sys.executable
+
+'/usr/local/bin/python3'
+
+```
+
+<img src="images/image-20220726172019057.png" alt="image-20220726172019057"  />
+
+```sh
+# 配置软连接，与我们PythonUtils.java里面那个python的路径一样
+ln -s /usr/local/bin/python3 /usr/bin/python3
+```
+
+<img src="images/image-20220726161554806.png" alt="image-20220726161554806" style="zoom:80%;" />
+
+9、pip配置镜像源
+
+先更新pip版本到最新
+
+```sh
+pip3 install --upgrade pip
+```
+
+命令行修改源
+
+```sh
+pip3 config set global.index-url https://pypi.douban.com/simple/
+```
+
+查看当前源
+
+```sh
+pip3 config list
+```
+
+![image-20220726172752340](images/image-20220726172752340.png)
+
+10、安装算法库需要的包
+
+```sh
+pip install numpy 
+pip install pandas
+pip install scipy
+pip install statsmodels -i http://pypi.douban.com/simple --trusted-host pypi.douban.com
+```
+
+<img src="images/image-20220726173045957.png" alt="image-20220726173045957" style="zoom:67%;" />	$\color{#FF69B4}{撒花结课撒花结课撒花结课撒花结课撒花结课撒花结课撒花结课撒花结课撒花结课撒花结课撒花结课撒花结课}$
+
+# 8、端口占用
 
 1. 查询端口
 
@@ -1433,8 +1649,7 @@ docker logs -ft --tail 50 frontxboot  # 查看容器近50条日志信息
    kill -9 进程id
    ```
 
-
-## 6.4、删除目录
+# 9、删除目录
 
 ```sh
 rm -rf 目录的路径
