@@ -1,3 +1,112 @@
+# Linux常识
+
+各不同版本Linux，都是基于相同的内核版本，只是用的内核版本可能有高有低，同时各厂家自己加了自己有特点的工具，还有某些文件位置不一样，所以可以说，不同版本的Linux相同度可以达90%
+
+**三大家族：**
+
+linux系统基本上分两大类：
+
+[RedHat](https://so.csdn.net/so/search?q=RedHat&spm=1001.2101.3001.7020)系列：Redhat、Centos、Fedora等；
+
+[Debian](https://so.csdn.net/so/search?q=Debian&spm=1001.2101.3001.7020)系列：Debian、Ubuntu等；
+
+**RedHat 系列**
+
+常见的安装包格式 rpm包,安装rpm包的命令是“rpm -参数”
+
+包管理工具 [yum](https://so.csdn.net/so/search?q=yum&spm=1001.2101.3001.7020)
+
+支持tar包
+
+**Debian系列** 
+
+常见的安装包格式 deb包,安装deb包的命令是“dpkg -参数” 
+
+包管理工具 apt 
+
+支持tar包
+
+<img src="images/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L21vamly,size_16,color_FFFFFF,t_70.png" alt="img" style="zoom:80%;" />
+
+
+
+**Linux安装软件的常识：**
+
+**通用下载工具：**
+
+[wget](https://so.csdn.net/so/search?q=wget&spm=1001.2101.3001.7020)是一种下载工具。可以下载网络上的资源，有点类似于迅雷。比如安装redis时需要先下载redis软件然后再安装，那就用wget命令。
+
+**Centos：**使用yum进行软件安装；
+
+- [yum](https://so.csdn.net/so/search?q=yum&spm=1001.2101.3001.7020)是一种安装工具。如果你想安装软件，可以使用yum安装的时候，建议使用yum安装最好，基本上是一步完成。比如安装Linux的rz/sz命令工具：直接输入：yum install -y lrzsz 就会安装了。
+
+**Ubuntu：**使用apt进行软件安装。
+
+- 其中还有一个apt-get，区别在于：apt = apt-get、apt-cache 和 apt-config 中最常用命令选项的集合。apt是16年对apt-get的升级整合，我们一般用apt完全够了。目前还没有任何 Linux 发行版官方放出 apt-get 将被停用的消息，至少它还有比 apt 更多、更细化的操作功能。对于低级操作，仍然需要 apt-get。
+
+## 镜像源配置
+
+==首先配置国内yum源。==
+
+网易（163）yum源是国内最好的yum源之一 ，无论是速度还是软件版本，都非常的不错。
+
+首先备份 /etc/yum.repos.d/CentOS-Base.repo
+
+```cmd
+mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup
+```
+
+下载对应版本 repo 文件, 放入 /etc/yum.repos.d/ 
+
+<img src="images/image-20220909165429389.png" alt="image-20220909165429389" style="zoom:80%;" />
+
+```cmd
+wget http://mirrors.163.com/.help/CentOS7-Base-163.repo
+
+mv CentOS7-Base-163.repo CentOS-Base.repo
+```
+
+运行以下命令生成缓存
+
+```
+yum clean all
+yum makecache
+```
+
+==国内apt源==
+
+[ubuntu | 镜像站使用帮助 | 清华大学开源软件镜像站 | Tsinghua Open Source Mirror](https://mirror.tuna.tsinghua.edu.cn/help/ubuntu/)
+
+## 切换管理员
+
+具体命令：
+
+**（1）使用 sudo 命令**
+
+`xzm@ubuntu:~$  sudo`
+
+然后，输入当前管理员用户密码就可以得到超级用户的权限了。但默认情况下5分钟后root权限就失效了。
+
+**（2）可以使用 sudo -i 命令**
+
+`xzm@ubuntu:~$  sudo -i`
+
+接着，输入当前管理员用户的密码就可以进到root用户了。
+
+**（3）如果想一直使用root权限，要通过su命令切换到root用户**
+
+首先，要设置root用户的密码：
+
+`xzm@ubuntu:~$  sudo passwd root`
+
+这样就可以设置root用户的密码了。
+
+然后，su，输入root密码
+
+`xzm@ubuntu:~$  su`
+
+之后，就可以自由的切换到root用户了
+
 # c问题
 
 我们写的代码会接触到好几个环境：开发环境、测试环境以及生产环境：
@@ -222,7 +331,7 @@ docker run 参数 镜像名称:版本
 docker run -it --name=test centos:7 /bin/bash  #这个/bin这里是进入后马上执行的命令
 docker run -id --name=Redis2 redis:5.0
 
-docker exec -it 容器名称 初始化命令   # 初始化命令可要可不要，有的需要
+docker exec -it 容器名称 初始化命令   # 初始化命令可要可不要，有的需要，
 exit #退出容器
 ```
 
@@ -427,6 +536,7 @@ docker run –it --name=c2 --volumes-from c3 centos:7 /bin/bash
 假如我们运行了一个简单的springboot项目: 宿主机的7001映射到springboot容器内8000.（宿主机的8000还是空的，容器内7001是空的，懂了吧）
 
 ```sh
+# 宿主机7001——容器内8000
 docker run -id --name=sp -p 7001:8000 sp
 # 容器内部访问该服务 （先进入容器：docker exec -it sp bash）
 curl localhost:8000/hello
@@ -1657,17 +1767,136 @@ rm -rf 目录的路径
 
 
 
+# 10、compose
+
+**Docker 服务编排**
+
+微服务架构的应用系统中一般包含若干个微服务，每个微服务一般都会部署多个实例，如果每个微服务都要手动启停，维护的工作量会很大。
+
+• 要从Dockerfile build image 或者去dockerhub拉取image
+
+• 要创建多个container
+
+• 要管理这些container（启动停止删除）
+
+**服务编排：** 按照一定的业务规则批量管理容器
+
+**Docker Compose**
+
+Docker Compose是一个编排多容器分布式部署的工具，提供命令集管理容器化应用的完整开发周期，包括服务构建，启动和停止。使用步骤：
+
+1. 利用 Dockerfile 定义运行环境镜像
+
+2. 使用 docker-compose.yml 定义组成应用的各服务
+
+3. 运行 docker-compose up 启动应用
+
+<img src="images/image-20220918105337390.png" alt="image-20220918105337390" style="zoom:80%;" />
+
+### 一、安装Docker Compose
+
+```shell
+# Compose目前已经完全支持Linux、Mac OS和Windows，在我们安装Compose之前，需要先安装Docker。下面我 们以编译好的二进制包方式安装在Linux系统中。 
+curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+# 设置文件可执行权限 
+chmod +x /usr/local/bin/docker-compose
+# 查看版本信息 
+docker-compose -version
+```
+
+### 二、卸载Docker Compose
+
+```shell
+# 二进制包方式安装的，删除二进制文件即可
+rm /usr/local/bin/docker-compose
+```
 
 
 
+### 三、 使用docker compose编排nginx+springboot项目
 
+1. 创建docker-compose目录
 
+```shell
+mkdir ~/docker-compose
+cd ~/docker-compose
+```
 
+2. 编写 docker-compose.yml 文件
 
+```yml
+version: '3'
+services:
+  nginx:
+   image: nginx
+   ports:
+    - 80:80
+   links:
+    - app  # 这个也可以不写，这个和后面nginx的配置文件对应
+   volumes:
+    - ./nginx/conf.d:/etc/nginx/conf.d
+  app:
+    image: app  # 这是springboot项目镜像
+    expose:
+      - "8080"
+```
 
+3. 创建./nginx/conf.d目录
 
+```shell
+mkdir -p ./nginx/conf.d
+```
 
+4. 在./nginx/conf.d目录下 编写itheima.conf文件
 
+```shell
+server {
+    listen 80;
+    access_log off;
+
+    location / {
+        proxy_pass http://app:8080;  # app和前面的yml文件对应，直接用ip地址也x
+    }
+   
+}
+```
+
+5. 在~/docker-compose 目录下 使用docker-compose 启动容器
+
+```shell
+docker-compose up
+```
+
+6. 测试访问
+
+```shell
+http://192.168.149.135/hello
+```
+
+# 11、docker与传统虚拟机对比
+
+**docker容器虚拟化 与 传统虚拟机比较**
+
+容器就是将软件打包成标准化单元，以用于开发、交付和部署。
+
+- 容器镜像是轻量的、可执行的独立软件包 ，包含软件运行所需的所有内容：代码、运行时环境、系统工具、系统库和设置。
+- 容器化软件在任何环境中都能够始终如一地运行。
+- 容器赋予了软件独立性，使其免受外在环境差异的影响，从而有助于减少团队间在相同基础设施上运行不同软件时的冲突。
+
+<img src="images/image-20220918105520857.png" alt="image-20220918105520857" style="zoom:80%;" />
+
+**相同：**
+
+- 容器和虚拟机具有相似的资源隔离和分配优势
+
+**不同：**
+
+- 容器虚拟化的是操作系统，虚拟机虚拟化的是硬件。
+- 传统虚拟机可以运行不同的操作系统，容器只能运行同一类型操作系统
+
+<img src="images/image-20220918105629756.png" alt="image-20220918105629756" style="zoom:80%;" />
+
+<img src="images/image-20220918105656939.png" alt="image-20220918105656939" style="zoom:80%;" />
 
 
 
