@@ -863,6 +863,8 @@ frontxboot
 
 ```shell
 docker search redis
+
+docker run -d --name=-p 6030:6030 -p 6041:6041 -p 6043-6049:6043-6049 -p 6043-6049:6043-6049/udp tdengine/tdengine
 ```
 
 2. 拉取redis镜像
@@ -1448,42 +1450,6 @@ server {
     }
 }
 
-
-    # another virtual host using mix of IP-, name-, and port-based configuration
-    #
-    #server {
-    #    listen       8000;
-    #    listen       somename:8080;
-    #    server_name  somename  alias  another.alias;
-
-    #    location / {
-    #        root   html;
-    #        index  index.html index.htm;
-    #    }
-    #}
-
-
-    # HTTPS server
-    #
-    #server {
-    #    listen       443 ssl;
-    #    server_name  localhost;
-
-    #    ssl_certificate      cert.pem;
-    #    ssl_certificate_key  cert.key;
-
-    #    ssl_session_cache    shared:SSL:1m;
-    #    ssl_session_timeout  5m;
-
-    #    ssl_ciphers  HIGH:!aNULL:!MD5;
-    #    ssl_prefer_server_ciphers  on;
-
-    #    location / {
-    #        root   html;
-    #        index  index.html index.htm;
-    #    }
-    #}
-
 }
 ```
 
@@ -1525,6 +1491,235 @@ docker logs -ft --tail 50 frontxboot  # 查看容器近50条日志信息
 这里一般就可以了，后端部署ok的话；
 
 访问：http://47.111.114.184:9000
+
+
+
+
+
+### 3. 不用docker
+
+我们的系统不用docker安装方便一点，因为不用去改Nginx的请求转发的地址，真的改的麻烦哦！
+
+系统部署端口：
+
+​	1、后端  》》》》》》  182.245.124.110:4341==192.168.10.43:8000
+
+​	2、前端  》》》》》》  182.245.124.110:4343==192.168.10.43:8002
+
+​	部署的时候，大屏跳转改成外部访问地址！
+
+​	Nginx的还是写本地的就行了，因为是请求转发，nginx和后端是一个服务器，127.0.0.1:8000可以访问到！！
+
+**1、官网下载Nginx**
+
+http://nginx.org/en/download.html
+
+![在这里插入图片描述](images/45196f8bac404a44bf53828b9e2e3330.png#pic_center)
+
+
+
+上传到服务器里面：
+
+<img src="images/image-20221019171604778.png" alt="image-20221019171604778" style="zoom:80%;" />
+
+**2、解压配置**
+
+1）检查是否存在 nginx（**有的话需要卸载掉自带的**）
+
+```
+whereis nginx
+```
+
+2）进入下载目录，解压
+
+```
+tar -zxvf nginx-1.20.2.tar.gz
+```
+
+3）进入解压目录，发现和Window目录一样的
+
+<img src="images/image-20221019171816176.png" alt="image-20221019171816176" style="zoom:80%;" />
+
+4）修改配置文件，在conf目录下面。
+
+<img src="images/image-20221019172000645.png" alt="image-20221019172000645" style="zoom:80%;" />
+
+```sh
+#user  nobody;
+worker_processes  1;
+
+#error_log  logs/error.log;
+#error_log  logs/error.log  notice;
+#error_log  logs/error.log  info;
+
+#pid        logs/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+    #                  '$status $body_bytes_sent "$http_referer" '
+    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+    #access_log  logs/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+server {
+    listen       8002;
+    server_name  localhost;
+
+    # Vue路由模式为history需添加的配置
+    location / {
+        if (!-e $request_filename) {
+            rewrite ^(.*)$ /index.html?s=$1 last;
+            break;
+        }
+        root   xboot;    # 前端打包的项目文件路径
+        index  index.html;
+    }
+
+    location /xboot/ {
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location /doc.html {
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location /swagger-resources {
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location /webjars {
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location /v2 {
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location /druid {
+        proxy_pass http://127.0.0.1:8000;
+    }
+    # 完整版Activiti工作流设计器以及机器人助手页面需加入以下配置
+    location /chat {
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location /modeler {
+        proxy_pass http://127.0.0.1:8000;
+     }
+    location /editor-app {
+        proxy_pass http://127.0.0.1:8000;
+    }
+    # 以上为完整版需要加的反向代理转发路径规则
+
+    # 获取真实IP以及Websocket需添加的配置
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    
+    # 客户端Body大小限制（文件上传大小限制配置）
+    client_max_body_size 5m;
+
+    error_page   500 502 503 504 404  /50x.html;
+    location = /50x.html {
+        root   html;
+    }
+}
+
+
+}
+
+```
+
+
+
+
+
+**3、安装Nginx**
+
+
+
+先提前安装两个组件：
+
+```sh
+yum install -y openssl*
+
+yum -y install ncurses-devel
+```
+
+
+
+在解压目录 `/usr/local/software/bushu/Nginx/nginx-1.22.0` 执行命令：
+
+```sh
+./configure			#先执行
+make			    #执行完./configure之后，敲make回车
+make install		#确认是否安装成功（可执行可不执行,没有影响）
+```
+
+
+
+等待完成后，nginx会被安装在Linux虚拟机上的`/usr/local/nginx`目录下，可以通过查找
+
+```sh
+whereis nginx			#查找nginx文件
+cd /usr/local/nginx		#进入该文件
+```
+
+
+
+然后后续如果需要对Ngixn再次配置，就需要在安装好的目录下进行修改，如下：两个都是配置文件，忘记哪个是优先了，反正都改一下就对了
+
+<img src="images/image-20221019172934798.png" alt="image-20221019172934798" style="zoom:80%;" />
+
+
+
+
+
+**4、将前端打包文件放到安装nginx的目录下即可，名字和前面对应为xboot**
+
+
+
+
+
+
+
+**5、启动、停止Nginx**
+
+Nginx的命令程序在：`/usr/local/nginx/sbin`，也就是sbin目录
+
+```sh
+cd /usr/local/nginx/sbin  #进入sbin文件
+
+./nginx				#启动nginx程序
+
+./nginx -s stop		#停止nginx
+
+./nginx	-s quit		#安全退出
+
+./nginx -s reload	#修改了文件之后重新加载该程序文件
+
+ps aux|grep nginx	#查看nginx进程
+```
+
+
+
+
+
+
 
 # 7、桥梁后端算法部署
 
