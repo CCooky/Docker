@@ -328,7 +328,7 @@ docker ps –a #查看所有容器(包括已经停止的)
 ```sh
 docker run 参数 镜像名称:版本
 
-docker run -it --name=test centos:7 /bin/bash  #这个/bin这里是进入后马上执行的命令
+docker run -it --name=test centos:7 /bin/bash  #这个是创建容器后马上执行的命令
 docker run -id --name=Redis2 redis:5.0
 
 docker exec -it 容器名称 初始化命令   # 初始化命令可要可不要，有的需要，
@@ -426,9 +426,9 @@ docker inspect 容器名称
 
 **数据卷**
 
-​	• 数据卷是宿主机中的一个目录或文件(被挂载了才算)
+​	• 数据卷是**宿主机**中的一个目录或文件(被挂载了才算)
 
-​	• 当容器目录和数据卷目录绑定后，对方的修改会立即同步
+​	• 当容器目录和数据卷目录绑定后，双方的修改会立即同步
 
 ​	• 一个数据卷可以被多个容器同时挂载
 
@@ -488,11 +488,11 @@ docker run -it --name=c4 -v /root/data:/root/data centos:7
 
 **原理如下：**
 
-![image-20220712140014415](images/image-20220712140014415.png)
+<img src="images/image-20220712140014415.png" alt="image-20220712140014415" style="zoom: 67%;" />
 
-![image-20220712140019127](images/image-20220712140019127.png)
+<img src="images/image-20220712140019127.png" alt="image-20220712140019127" style="zoom:67%;" />
 
-![image-20220712140006894](images/image-20220712140006894.png)
+<img src="images/image-20220712140006894.png" alt="image-20220712140006894" style="zoom:67%;" />
 
 **配置数据卷容器**
 
@@ -517,9 +517,9 @@ docker run –it --name=c1 --volumes-from c3 centos:7 /bin/bash
 docker run –it --name=c2 --volumes-from c3 centos:7 /bin/bash
 ```
 
-# 4、应用部署
 
-###通信问题
+
+## 3.5、外部机器与容器通信
 
 **问题：**容器内的网络服务和外部机器不能直接通信；
 
@@ -529,7 +529,7 @@ docker run –it --name=c2 --volumes-from c3 centos:7 /bin/bash
 
 当容器中的网络服务需要被外部机器访问时，可以将容器中提供服务的端口映射到宿主机的端口上。外部机器访问宿主机的该端口，从而间接访问容器的服务。这种操作称为：**端口映射**
 
-==注意一个细节哦：==宿主机的端口与容器的端口不是一个端口哦，他们是相互独立的，宿主机的端口就是我们Linux服务器的端口，容器的端口就是容器内服务的端口，宿主机有8000，容器也要8000；==可以把容器看作是一个单独的微系统，他有自己的网络服务、端口，只是没有对外暴露的IP地址，宿主机有一个localhost，容器也有一个localhost！！！==所以必须配置端口映射。
+==注意一个细节哦：==宿主机的端口与容器的端口不是一个端口哦，他们是相互独立的，宿主机的端口就是我们Linux服务器的端口，容器的端口就是容器内服务的端口，宿主机有8000，容器也有8000；==可以把容器看作是一个单独的微系统，他有自己的网络服务、端口，只是没有对外暴露的IP地址，宿主机有一个localhost，容器也有一个localhost！！！==所以必须配置端口映射。
 
 宿主机有一个本地的localhost，也有一个对外暴露的 Ip地址，两个本质是一样的东西（但是访问对外的IP地址是需要过LInux防火墙和阿里云控制台权限的）；
 
@@ -547,6 +547,8 @@ curl localhost:7001/hello
 
 
 <img src="images/image-20220712143351440.png" alt="image-20220712143351440" style="zoom: 80%;" />
+
+# 4、应用部署
 
 ## 4.1、MySQL部署
 
@@ -891,7 +893,7 @@ docker run -id --name=c_redis -p 6379:6379 redis:5.0
 
 <img src="images/image-20220712151508586.png" alt="image-20220712151508586" style="zoom: 67%;" />
 
-# 5、Dockerfile
+# 5、镜像原理及制作
 
 ## 5.1、镜像原理
 
@@ -907,7 +909,15 @@ docker run -id --name=c_redis -p 6379:6379 redis:5.0
 
 - **Docker 中一个tomcat镜像为什么有500MB，而一个tomcat安装包只有70多MB？**
 
+
+
 $\color{#FF69B4}{1、首先了解一下操作系统的组成部分：}$
+
+> 为什么先要了解操作系统的组成部分呢？
+>
+> **因为镜像就是和操作系统相关的，通过镜像文件呢，我们可以就启动一个Linux操作系统，启动一个容器也就是启动了一个Linux操作系统。**
+>
+> <img src="images/image-20230224222445768.png" alt="image-20230224222445768" style="zoom:80%;" />
 
 ​		• 进程调度子系统
 
@@ -923,43 +933,51 @@ $\color{#FF69B4}{1、首先了解一下操作系统的组成部分：}$
 
 ​		• 作业控制子系统
 
-我们这里重点关注文件管理子系统：
+我们这里重点关注操作系统的文件管理子系统，==由于Docker是基于Linux操作系统的，所以我们看一下Linux的文件管理子系统。==
 
 **Linux文件系统由bootfs和rootfs两部分组成**
 
-​	• bootfs：包含bootloader（引导加载程序）和 kernel（内核）
+​	• bootfs：包含bootloader（引导加载程序）和 **kernel（内核）**
 
-​	• rootfs： root文件系统，包含的就是典型 Linux 系统中的/dev，/proc，/bin，/etc等标准目录和文件
+​	• rootfs： **root文件系统**，包含的就是典型 Linux 系统中的/dev，/proc，/bin，/etc等标准目录和文件
 
-​	• 不同的linux发行版，bootfs基本一样，而rootfs不同，如ubuntu，centos等
+​	• **不同的linux发行版，bootfs基本一样，而rootfs不同**，如ubuntu，centos等
+
+
 
 $\color{#FF69B4}{2、docker镜像的原理}$
 
-1. Docker镜像是由特殊的文件系统叠加而成
+1. **Docker镜像是由特殊的文件系统叠加而成**
 
-2. 最底端是 bootfs，并使用宿主机的bootfs（内核）
+2. **最底端是 bootfs，并且使用宿主机的bootfs（内核）**，正因为这样所以docker容器启动的非常快啊，几乎就是1秒，而我们自己启动一台Linux的操作系统就要好久啊，几十秒甚至1分钟。因为容器启动时省去了启动bootfs的这个过程。
 
-3. 第二层是 root文件系统rootfs, 称为base image
+   提问：可不可以在Linux操作系统下安装一个Windows的docker呢？答案是不可以，因为内核不一样啊，不能复用了。
 
-<img src="images/image-20220712153623174.png" alt="image-20220712153623174" style="zoom:67%;" />
+   <img src="images/image-20230224222848934.png" alt="image-20230224222848934" style="zoom:80%;" />
 
-4. 然后再往上可以叠加其他的镜像文件；
+3. **第二层是 root文件系统rootfs, 称为base image**（
 
-   这三部份被称为只读镜像，对用户而言，我们只知道搞了一个Tomcat镜像，但Tomcat依赖于下面两个镜像，他会在下载Tomcat时自动去搜索，假如有了就直接在上面叠加，没有就先下载；这样做的好处就是：**复用**；
+<img src="images/image-20220712153623174.png" alt="image-20220712153623174" style="zoom: 50%;" />
 
-   解释一下：就是说，我们现在在下图的基础上，要加一个Nginx镜像，Nginx是依赖于基础镜像撒，但现在已经被下载过了，所以我们就直接下载顶部的Nginx镜像就好了
+4. **然后再往上可以叠加其他的镜像文件；**比如添加一个jdk镜像，然后上面再叠加一个tomcat镜像，如下，以tomcat为例，**我们就会称这三部分是一个tomcat的镜像，但对外暴露的只是tomcat镜像。**但Tomcat依赖于下面两个镜像，他会在下载Tomcat时自动去搜索，假如有了下面的所需镜像就直接在上面叠加，没有就先下载。**这样做的好处就是：复用**
 
-<img src="images/image-20220712153740513.png" alt="image-20220712153740513" style="zoom:67%;" />
+   <img src="images/image-20230224223701901.png" alt="image-20230224223701901" style="zoom: 67%;" />
 
-5. 统一文件系统（Union File System）技术能够将不同的层整合成一个文件系统，为这些层提供了一个统一的视角，这样就隐藏了多层的存在，在用户的角度看来，只存在一个文件系统。
+   **并且这三部分叫做只读镜像**。为什么是只读呢？因为你修改了之后别人就不能去复用了呀！
 
-6. 一个镜像可以放在另一个镜像的上面。位于下面的镜像称为父镜像，最底部的镜像成为基础镜像。
+5. **这种叠加的操作叫做：统一文件系统（Union File System）技术**，他能够将不同的层整合成一个文件系统，为这些层提供了一个统一的视角，这样就隐藏了多层的存在，在用户的角度看来，只存在一个文件系统。你看用户并不知道有多少层，只知道我搞了一个tomcat镜像。
 
-7. **只读镜像不可以改！！那我们需要自己配置Tomcat类似的怎么办？？？**
+6. **一个镜像可以放在另一个镜像的上面。**位于下面的镜像称为**父镜像**，最底部的镜像成为**基础镜像**。
 
-   有办法，通过容器！！！当从一个镜像启动容器时，Docker会在最顶层加载一个读写文件系统作为容器，我们可以在这个容器里面修改，然后把这个容器又作为一个新的镜像！！！
+7. **只读镜像不可以改！！那就要改镜像怎么办？？？**
 
-<img src="images/image-20220712154411764.png" alt="image-20220712154411764" style="zoom:67%;" />
+   有办法，通过容器！！！当从一个镜像启动容器时，Docker会在最顶层加载一个读写文件系统作为容器（里面包含了基础镜像啊、父镜像啊，当前镜像啊），我们可以在这个容器里面修改，改完了之后再把这个容器作为一个新的镜像！！！就相当于这个新的镜像是改了tomcat后的镜像。容器下面的那三部分还是只读镜像，没有影响。
+
+<img src="images/image-20220712154411764.png" alt="image-20220712154411764" style="zoom: 50%;" />
+
+解释一下：就是说，我们现在在下图的基础上，要加一个Nginx镜像，Nginx是依赖于基础镜像撒，但现在已经被下载过了，所以我们就直接下载顶部的Nginx镜像就好了
+
+####   总结：
 
 -  **Docker 镜像本质是什么？**
 
@@ -967,13 +985,15 @@ $\color{#FF69B4}{2、docker镜像的原理}$
 
 -  **Docker 中一个centos镜像为什么只有200MB，而一个centos操作系统的iso文件要几个个G？** 
 
-  ​    Centos的iso镜像文件包含bootfs和rootfs，而docker的centos镜像复用操作系统的bootfs，只有rootfs和其他镜像层
+  ​    Centos的iso镜像文件包含bootfs和rootfs，而docker的centos镜像复用操作系统的bootfs，只有rootfs和其他镜像层。
 
 - **Docker 中一个tomcat镜像为什么有500MB，而一个tomcat安装包只有70多MB？**
 
-  ​    由于docker中镜像是分层的，tomcat虽然只有70多MB，但他需要依赖于父镜像和基础镜像，所有整个对外暴露的tomcat镜像大小500多MB
+  ​    由于docker中镜像是分层叠加的，tomcat虽然只有70多MB，但他需要依赖于父镜像jdk和基础镜像如centos啊，这样jdk200多M，centos200多M，加起来就有500多M了，所以整个tomcat镜像大小500多MB，但对于用户而言只看到了对外暴露的tomcat镜像，这就是统一文件系统（Union File System）技术的好处
 
-##  5.2、镜像制作
+
+
+##  5.2、容器转镜像
 
 **1、容器转镜像**
 
@@ -981,65 +1001,83 @@ $\color{#FF69B4}{2、docker镜像的原理}$
 docker commit 容器id 镜像名称:版本号
 ```
 
-<img src="images/image-20220712155353790.png" alt="image-20220712155353790" style="zoom:67%;" />
+<img src="images/image-20230224230546495.png" alt="image-20230224230546495" style="zoom: 67%;" />
 
 **2、压缩镜像**
 
-镜像本事是不可以传给别人的，所以要压缩，就可以了；例如开发转给测试
+镜像本身是不可以传给别人的，所以要压缩，就可以了，压缩文件不是想怎么传就怎么传嘛；例如开发转给测试
 
 ```
 docker save -o 压缩文件名称 镜像名称:版本号
 ```
 
-<img src="images/image-20220712155655148.png" alt="image-20220712155655148" style="zoom:80%;" />
+<img src="images/image-20230224230605177.png" alt="image-20230224230605177" style="zoom: 67%;" />
 
 **3、还原镜像**
 
-测试人员拿到后，要把压缩的镜像还原进行使用；
+把压缩的镜像还原进行使用；
 
 ```
 docker load –i 压缩文件名称
 ```
 
-<img src="images/image-20220712155854885.png" alt="image-20220712155854885" style="zoom:80%;" />
+<img src="images/image-20230224230659281.png" alt="image-20230224230659281" style="zoom: 67%;" />
 
 **Example:**
 
 ![image-20220712160055214](images/image-20220712160055214.png)
 
-## 5.3、Dockerfile
 
-1.  Dockerfile 是一个文本文件
-2. 包含了一条条的指令
-3.  每一条指令构建一层，基于基础镜像，最终构建出一个新的镜像
+
+
+
+## 5.3、Dockerfile制作镜像
+
+1.  **Dockerfile 是一个文本文件**
+2. **包含了一条条的指令**
+3.  **每一条指令构建一层镜像，基于基础镜像，最终构建出一个新的镜像**
 4. 对于开发人员：可以为开发团队提供一个完全一致的开发环境
 5. 对于测试人员：可以直接拿开发时所构建的镜像或者通过Dockerfile文件构建一个新的镜像开始工作了
 6. 对于运维人员：在部署时，可以实现应用的无缝移植
 
-Dockerfile有超级多的指令，不可能全部背下来，要用的时候我们去官网看一下：Dochub网址：https://hub.docker.com，上面有很多Nginx，等等的范例
+Dockerfile有超级多的指令，不可能全部背下来，要用的时候我们去官网看一下：Dochub网址：https://hub.docker.com，上面有很多Nginx，等等的范例。
+
+> 其实`volume`指令的设定的目的就是为了避免用户忘记指定`-v`的时候导致的数据丢失，那么如果用户指定了`-v`，自然而然就不需要volume指定的位置了。
+
+| DF关键字       | 作用                                               | 备注                                                         |
+| -------------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| **FROM**       | 指定父镜像                                         | 指定dockerfile基于那个image构建                              |
+| **MAINTAINER** | 作者信息                                           | 用来标明这个dockerfile谁写的                                 |
+| **LABEL**      | 标签                                               | 写一些说明性的信息。用来标明dockerfile的标签 可以使用Label代替Maintainer 最终都是在docker image基本信息中可以查看 |
+| **RUN**        | **在构建镜像过程中执行的命令**。可以使用多个该命令 | 执行一段命令 默认是/bin/sh 格式: RUN command 或者 RUN ["command" , "param1","param2"] |
+| **CMD**        | **容器启动时执行的命令**，只能有一个CMD            | 提供启动容器时候的默认命令 和ENTRYPOINT配合使用.格式 CMD ["command" , "param1","param2"] |
+| ENTRYPOINT     | 入口                                               | 一般在制作一些执行就关闭的容器中会使用                       |
+| **COPY**       | 复制文件到容器                                     | 不会自动解压缩，只能添加本地的                               |
+| **ADD**        | 添加文件到容器中                                   | 会自动解压缩，并且既可以添加本地的也可以添加远程的           |
+| ENV            | 环境变量                                           | 指定build时候的环境变量 可以在启动的容器的时候 通过-e覆盖 格式ENV name=value |
+| ARG            | 构建参数                                           | 构建参数 只在构建的时候使用的参数 如果有ENV 那么ENV的相同名字的值始终覆盖arg的参数 |
+| **VOLUME**     | **定义外部可以挂载的数据卷**                       | 指定build的image那些目录可以启动的时候挂载到文件系统中 启动容器的时候使用 -v 绑定 格式 VOLUME ["目录"] |
+| EXPOSE         | 暴露端口                                           | 定义容器运行的时候监听的端口 启动容器的使用-p来绑定暴露端口 格式: EXPOSE 8080 或者 EXPOSE 8080/udp |
+| WORKDIR        | 工作目录                                           | 指定容器内部的工作目录 如果没有创建则自动创建 如果指定/ 使用的是绝对地址 如果不是/开头那么是在上一条workdir的路径的相对路径 |
+| USER           | 指定执行用户                                       | 指定build或者启动的时候 用户 在RUN CMD ENTRYPONT执行的时候的用户 |
+| HEALTHCHECK    | 健康检查                                           | 指定监测当前容器的健康监测的命令 基本上没用 因为很多时候 应用本身有健康监测机制 |
+| ONBUILD        | 触发器                                             | 当存在ONBUILD关键字的镜像作为基础镜像的时候 当执行FROM完成之后 会执行 ONBUILD的命令 但是不影响当前镜像 用处也不怎么大 |
+| STOPSIGNAL     | 发送信号量到宿主机                                 | 该STOPSIGNAL指令设置将发送到容器的系统调用信号以退出。       |
+| SHELL          | 指定执行脚本的shell                                | 指定RUN CMD ENTRYPOINT 执行命令的时候 使用的shell            |
 
 
 
-| DF关键字    | 作用                     | 备注                                                         |
-| ----------- | ------------------------ | ------------------------------------------------------------ |
-| FROM        | 指定父镜像               | 指定dockerfile基于那个image构建                              |
-| MAINTAINER  | 作者信息                 | 用来标明这个dockerfile谁写的                                 |
-| LABEL       | 标签                     | 用来标明dockerfile的标签 可以使用Label代替Maintainer 最终都是在docker image基本信息中可以查看 |
-| RUN         | 执行命令                 | 执行一段命令 默认是/bin/sh 格式: RUN command 或者 RUN ["command" , "param1","param2"] |
-| CMD         | 容器启动命令             | 提供启动容器时候的默认命令 和ENTRYPOINT配合使用.格式 CMD command param1 param2 或者 CMD ["command" , "param1","param2"] |
-| ENTRYPOINT  | 入口                     | 一般在制作一些执行就关闭的容器中会使用                       |
-| COPY        | 复制文件                 | build的时候复制文件到image中                                 |
-| ADD         | 添加文件                 | build的时候添加文件到image中 不仅仅局限于当前build上下文 可以来源于远程服务 |
-| ENV         | 环境变量                 | 指定build时候的环境变量 可以在启动的容器的时候 通过-e覆盖 格式ENV name=value |
-| ARG         | 构建参数                 | 构建参数 只在构建的时候使用的参数 如果有ENV 那么ENV的相同名字的值始终覆盖arg的参数 |
-| VOLUME      | 定义外部可以挂载的数据卷 | 指定build的image那些目录可以启动的时候挂载到文件系统中 启动容器的时候使用 -v 绑定 格式 VOLUME ["目录"] |
-| EXPOSE      | 暴露端口                 | 定义容器运行的时候监听的端口 启动容器的使用-p来绑定暴露端口 格式: EXPOSE 8080 或者 EXPOSE 8080/udp |
-| WORKDIR     | 工作目录                 | 指定容器内部的工作目录 如果没有创建则自动创建 如果指定/ 使用的是绝对地址 如果不是/开头那么是在上一条workdir的路径的相对路径 |
-| USER        | 指定执行用户             | 指定build或者启动的时候 用户 在RUN CMD ENTRYPONT执行的时候的用户 |
-| HEALTHCHECK | 健康检查                 | 指定监测当前容器的健康监测的命令 基本上没用 因为很多时候 应用本身有健康监测机制 |
-| ONBUILD     | 触发器                   | 当存在ONBUILD关键字的镜像作为基础镜像的时候 当执行FROM完成之后 会执行 ONBUILD的命令 但是不影响当前镜像 用处也不怎么大 |
-| STOPSIGNAL  | 发送信号量到宿主机       | 该STOPSIGNAL指令设置将发送到容器的系统调用信号以退出。       |
-| SHELL       | 指定执行脚本的shell      | 指定RUN CMD ENTRYPOINT 执行命令的时候 使用的shell            |
+#### 利用Dockerfile发布一个springboot的项目
+
+上传jar包到Linux服务器，在同一目录下写dockerfile文件。
+
+<img src="images/image-20230224195530302.png" alt="image-20230224195530302" style="zoom: 50%;" />
+
+java8镜像很大，600M呢。
+
+
+
+
 
 # 6、发布SP+vue项目
 
@@ -1066,7 +1104,7 @@ xboot项目需要Mysq、Redis、Java8三个环境，Java8不用提前安装，do
 
 ==注意注意==：坑点来了，这里相当于我们后端项目、Mysql、Redis在三个不同的容器，他们之间是不可以通信的，必须通过宿主机对外IP地址来通信！！！就是说我们后端yml文件要把mysql和Redis的host改为现在的Linux的IP地址；
 
-==记住：每一个容器就是一个单独的Linux系统！！！！！==
+==记住：每一个容器就是一个单独的系统！！！！！==
 
 ## 6.2、后端部署
 
@@ -1177,19 +1215,19 @@ systemctl disable firewalld  # 关闭防火墙的开机启动
 3. 阿里云服务器与docker虚拟网卡冲突，都是172网段
 
 ```sh
-idconfig  # 查看宿主机的网卡
+ifconfig  # 查看宿主机的网卡
 ```
 
 <img src="images/image-20220714002539231.png" alt="image-20220714002539231" style="zoom:80%;" />
 
 发现阿里云的[内网](https://so.csdn.net/so/search?q=内网&spm=1001.2101.3001.7020)eth0 网段正好跟Docker 的虚拟网卡都是 172 网段,有冲突.
 
- ```sh
+```sh
  # 修改docker的网卡
  vim /etc/docker/daemon.json
  # 在里面加入下面一行
  "bip": "192.168.1.5/24",
- ```
+```
 
 <img src="images/image-20220714002804719.png" alt="image-20220714002804719"  />
 
@@ -1962,29 +2000,30 @@ rm -rf 目录的路径
 
 
 
-# 10、compose
+# 10、服务编排compose
 
-**Docker 服务编排**
+微服务架构的应用系统中一般包含若干个微服务，每个微服务一般都会部署多个实例，如果每个微服务都要手动启停，维护的工作量会很大。如我们按照原始的方式就是：
 
-微服务架构的应用系统中一般包含若干个微服务，每个微服务一般都会部署多个实例，如果每个微服务都要手动启停，维护的工作量会很大。
+- 要从Dockerfile build image 或者去dockerhub拉取image
 
-• 要从Dockerfile build image 或者去dockerhub拉取image
+- 要创建多个container
 
-• 要创建多个container
+- 要管理这些container（启动停止删除）
 
-• 要管理这些container（启动停止删除）
 
-**服务编排：** 按照一定的业务规则批量管理容器
+**服务编排： 按照一定的业务规则批量管理容器**
 
 **Docker Compose**
 
-Docker Compose是一个编排多容器分布式部署的工具，提供命令集管理容器化应用的完整开发周期，包括服务构建，启动和停止。使用步骤：
+Docker Compose是一个编排多容器分布式部署的**服务编排工具**，提供命令集管理容器化应用的完整开发周期，包括服务构建，启动和停止。
+
+使用步骤：
 
 1. 利用 Dockerfile 定义运行环境镜像
 
-2. 使用 docker-compose.yml 定义组成应用的各服务
+2. 使用 **docker-compose.yml** 定义组成应用的各服务（如要启动十个容器）
 
-3. 运行 docker-compose up 启动应用
+3. 运行 **docker-compose up** 启动应用（会按照顺序启动这十个容器，不用一个个手动启动）
 
 <img src="images/image-20220918105337390.png" alt="image-20220918105337390" style="zoom:80%;" />
 
@@ -2022,18 +2061,18 @@ cd ~/docker-compose
 ```yml
 version: '3'
 services:
-  nginx:
-   image: nginx
+  nginx: #要启动的容器名称
+   image: nginx  # 所用镜像名称
    ports:
     - 80:80
    links:
     - app  # 这个也可以不写，这个和后面nginx的配置文件对应
-   volumes:
+   volumes: # 数据卷
     - ./nginx/conf.d:/etc/nginx/conf.d
-  app:
-    image: app  # 这是springboot项目镜像
+  app: #要启动的容器名称
+    image: springbootapp  # 所用镜像名称
     expose:
-      - "8080"
+      - "8080"  # 只是显示的指明暴露的端口，并不会建立端口映射，提高可读性和维护性。
 ```
 
 3. 创建./nginx/conf.d目录
@@ -2050,7 +2089,7 @@ server {
     access_log off;
 
     location / {
-        proxy_pass http://app:8080;  # app和前面的yml文件对应，直接用ip地址也x
+        proxy_pass http://app:8080;  # app和前面的yml文件对应，直接用ip地址也可以
     }
    
 }
@@ -2067,6 +2106,8 @@ docker-compose up
 ```shell
 http://192.168.149.135/hello
 ```
+
+
 
 # 11、docker与传统虚拟机对比
 
